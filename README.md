@@ -1,1 +1,1 @@
-# TrabalhoOpenMP
+# TrabalhoMPI
