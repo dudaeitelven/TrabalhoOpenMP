@@ -44,7 +44,6 @@ typedef struct rgb RGB;
 int main(int argc, char **argv ){
 	char *entrada, *saida;
 	int tamanhoMascara, nth;
-
 	int iForImagem, jForImagem;
 	int i2, j2;
 	char aux;
@@ -55,11 +54,6 @@ int main(int argc, char **argv ){
 	RGB *imagem, *imagemSaida;
 	RGB *imagemSaidaFinal;
 	RGB *imagemAux;
-
-	MPI_Init(&argc, &argv);
-	MPI_Comm_size(MPI_COMM_WORLD, &np);
-	MPI_Comm_rank(MPI_COMM_WORLD, &id);
-	
 	CABECALHO cabecalho;
 
 	if ( argc != 4){
@@ -69,7 +63,7 @@ int main(int argc, char **argv ){
 
 	entrada = argv[1];
 	saida = argv[2];
-    tamanhoMascara = atoi(argv[3]);
+    	tamanhoMascara = atoi(argv[3]);
 
 	FILE *fin = fopen(entrada, "rb");
 
@@ -101,35 +95,25 @@ int main(int argc, char **argv ){
 	imagemSaida  = (RGB *)malloc(cabecalho.altura*cabecalho.largura*sizeof(RGB));
 	imagemAux  = (RGB *)malloc(cabecalho.altura/np*cabecalho.largura*sizeof(RGB));
 	imagemSaidaFinal  = (RGB *)malloc(cabecalho.altura*cabecalho.largura*sizeof(RGB));
-	if (id == 0){
-		imagem  = (RGB *)malloc(cabecalho.altura*cabecalho.largura*sizeof(RGB));
-		
+	imagem  = (RGB *)malloc(cabecalho.altura*cabecalho.largura*sizeof(RGB));
 
-		//Leitura da imagem
-		for(iForImagem=0; iForImagem<cabecalho.altura; iForImagem++){
-			ali = (cabecalho.largura * 3) % 4;
+	//Leitura da imagem
+	for(iForImagem=0; iForImagem<cabecalho.altura; iForImagem++){
+		ali = (cabecalho.largura * 3) % 4;
 
-			if (ali != 0){
-				ali = 4 - ali;
-			}
-
-			for(jForImagem=0; jForImagem<cabecalho.largura; jForImagem++){
-				fread(&imagem[iForImagem * cabecalho.largura + jForImagem], sizeof(RGB), 1, fin);
-			}
-
-			for(jForImagem=0; jForImagem<ali; jForImagem++){
-				fread(&aux, sizeof(unsigned char), 1, fin);
-			}
+		if (ali != 0){
+			ali = 4 - ali;
 		}
 
+		for(jForImagem=0; jForImagem<cabecalho.largura; jForImagem++){
+			fread(&imagem[iForImagem * cabecalho.largura + jForImagem], sizeof(RGB), 1, fin);
+		}
+
+		for(jForImagem=0; jForImagem<ali; jForImagem++){
+			fread(&aux, sizeof(unsigned char), 1, fin);
+		}
 	}
 
-	MPI_Bcast(imagemSaida, (cabecalho.altura*cabecalho.largura)*sizeof(RGB), MPI_BYTE, 0, MPI_COMM_WORLD);
-
-	MPI_Scatter(imagem,cabecalho.altura/np*cabecalho.largura*sizeof(RGB), MPI_BYTE,
-		imagemAux,cabecalho.altura/np*cabecalho.largura*sizeof(RGB),MPI_BYTE,0,MPI_COMM_WORLD);
-	
-	
 	//Processar imagem
 	for(iForImagem=0; iForImagem<cabecalho.altura/np; iForImagem++){
 		for(jForImagem=0; jForImagem<cabecalho.largura; jForImagem++){
@@ -153,25 +137,25 @@ int main(int argc, char **argv ){
 			lacoJ = jForImagem-range;
 			limiteJ = jForImagem + range;
 
-            if (lacoI < 0) lacoI = 0;
+            		if (lacoI < 0) lacoI = 0;
 			if (lacoJ < 0) lacoJ = 0;
 
-            if (limiteI > (cabecalho.altura - 1))  limiteI = (cabecalho.altura - 1);
+            		if (limiteI > (cabecalho.altura - 1))  limiteI = (cabecalho.altura - 1);
 			if (limiteJ > (cabecalho.largura - 1)) limiteJ = (cabecalho.largura - 1);
 
 			//Limpar variaveis auxiliares
-            for(iTamanhoAux2=0; iTamanhoAux2<tamanhoMascara*tamanhoMascara; iTamanhoAux2++){
-                rgbAux[iTamanhoAux2].red   = 0;
-                rgbAux[iTamanhoAux2].green = 0;
-                rgbAux[iTamanhoAux2].blue  = 0;
+			for(iTamanhoAux2=0; iTamanhoAux2<tamanhoMascara*tamanhoMascara; iTamanhoAux2++){
+				rgbAux[iTamanhoAux2].red   = 0;
+				rgbAux[iTamanhoAux2].green = 0;
+				rgbAux[iTamanhoAux2].blue  = 0;
 			}
 
 			rgbAux2.red   = 0;
-            rgbAux2.green = 0;
-            rgbAux2.blue  = 0;
+			rgbAux2.green = 0;
+			rgbAux2.blue  = 0;
 
-            iTamanhoAux  = 0;
-            iTamanhoAux2 = 0;
+			iTamanhoAux  = 0;
+			iTamanhoAux2 = 0;
 
 			//Calcular a mediana de cada pixel da imagem.
 			for(i2=lacoI; i2<=limiteI; i2++){
@@ -185,82 +169,62 @@ int main(int argc, char **argv ){
 			}
 
 			//Ordenar vetores red
-            for (iForOrdenar = 0; iForOrdenar < iTamanhoAux; iForOrdenar++)
-            {
-                for (jForOrdenar = 0; jForOrdenar < iTamanhoAux; jForOrdenar++)
-                {
-                    if (rgbAux[iForOrdenar].red < rgbAux[jForOrdenar].red)
-                    {
-                        rgbAux2.red             = rgbAux[iForOrdenar].red;
-                        rgbAux[iForOrdenar].red = rgbAux[jForOrdenar].red;
-                        rgbAux[jForOrdenar].red = rgbAux2.red;
-                    }
-                }
-            }
+			for (iForOrdenar = 0; iForOrdenar < iTamanhoAux; iForOrdenar++){
+				for (jForOrdenar = 0; jForOrdenar < iTamanhoAux; jForOrdenar++){
+					if (rgbAux[iForOrdenar].red < rgbAux[jForOrdenar].red){
+					rgbAux2.red             = rgbAux[iForOrdenar].red;
+					rgbAux[iForOrdenar].red = rgbAux[jForOrdenar].red;
+					rgbAux[jForOrdenar].red = rgbAux2.red;
+					}
+				}
+			}
 
-            //Ordenar vetores green
-            for (iForOrdenar = 0; iForOrdenar < iTamanhoAux; iForOrdenar++)
-            {
-                for (jForOrdenar = 0; jForOrdenar < iTamanhoAux; jForOrdenar++)
-                {
-                    if (rgbAux[iForOrdenar].green < rgbAux[jForOrdenar].green)
-                    {
-                        rgbAux2.green             = rgbAux[iForOrdenar].green;
-                        rgbAux[iForOrdenar].green = rgbAux[jForOrdenar].green;
-                        rgbAux[jForOrdenar].green = rgbAux2.green;
-                    }
-                }
-            }
+			//Ordenar vetores green
+			for (iForOrdenar = 0; iForOrdenar < iTamanhoAux; iForOrdenar++) {
+				for (jForOrdenar = 0; jForOrdenar < iTamanhoAux; jForOrdenar++){
+					if (rgbAux[iForOrdenar].green < rgbAux[jForOrdenar].green){
+						rgbAux2.green             = rgbAux[iForOrdenar].green;
+						rgbAux[iForOrdenar].green = rgbAux[jForOrdenar].green;
+						rgbAux[jForOrdenar].green = rgbAux2.green;
+					}
+				}
+			}
 
-            //Ordenar vetores blue
-            for (iForOrdenar = 0; iForOrdenar < iTamanhoAux; iForOrdenar++)
-            {
-                for (jForOrdenar = 0; jForOrdenar < iTamanhoAux; jForOrdenar++)
-                {
-                    if (rgbAux[iForOrdenar].blue < rgbAux[jForOrdenar].blue)
-                    {
-                        rgbAux2.blue             = rgbAux[iForOrdenar].blue;
-                        rgbAux[iForOrdenar].blue = rgbAux[jForOrdenar].blue;
-                        rgbAux[jForOrdenar].blue = rgbAux2.blue;
-                    }
-                }
-            }
+			//Ordenar vetores blue
+			for (iForOrdenar = 0; iForOrdenar < iTamanhoAux; iForOrdenar++){
+				for (jForOrdenar = 0; jForOrdenar < iTamanhoAux; jForOrdenar++){
+					if (rgbAux[iForOrdenar].blue < rgbAux[jForOrdenar].blue){
+						rgbAux2.blue             = rgbAux[iForOrdenar].blue;
+						rgbAux[iForOrdenar].blue = rgbAux[jForOrdenar].blue;
+						rgbAux[jForOrdenar].blue = rgbAux2.blue;
+					}
+				}
+			}
 
-            //Substituir valores pela mediana de cada pixel
+            		//Substituir valores pela mediana de cada pixel
 			imagemSaida[iForImagem * cabecalho.largura + jForImagem].red    = rgbAux[posicaoMediana].red;
 			imagemSaida[iForImagem * cabecalho.largura + jForImagem].green  = rgbAux[posicaoMediana].green;
 			imagemSaida[iForImagem * cabecalho.largura + jForImagem].blue   = rgbAux[posicaoMediana].blue;
-			
-			
-		}
-		
-	
-	}
-	
-	MPI_Gather(imagemSaida,cabecalho.altura/np*cabecalho.largura*sizeof(RGB), MPI_BYTE,
-		imagemSaidaFinal, cabecalho.altura/np*cabecalho.largura*sizeof(RGB), MPI_BYTE, 0, MPI_COMM_WORLD);
-	
-
-	if (id == 0){
-		//Escrever a imagem
-		for(iForImagem=0; iForImagem<cabecalho.altura; iForImagem++){
-			ali = (cabecalho.largura * 3) % 4;
-
-			if (ali != 0){
-				ali = 4 - ali;
-			}
-
-			for(jForImagem=0; jForImagem<cabecalho.largura; jForImagem++){
-				fwrite(&imagemSaidaFinal[iForImagem * cabecalho.largura + jForImagem], sizeof(RGB), 1, fout);
-			}
-
-			for(jForImagem=0; jForImagem<ali; jForImagem++){
-				fwrite(&aux, sizeof(unsigned char), 1, fout);
-			}
 		}
 	}
+	
+	//Escrever a imagem
+	for(iForImagem=0; iForImagem<cabecalho.altura; iForImagem++){
+		ali = (cabecalho.largura * 3) % 4;
+
+		if (ali != 0){
+			ali = 4 - ali;
+		}
+
+		for(jForImagem=0; jForImagem<cabecalho.largura; jForImagem++){
+			fwrite(&imagemSaidaFinal[iForImagem * cabecalho.largura + jForImagem], sizeof(RGB), 1, fout);
+		}
+
+		for(jForImagem=0; jForImagem<ali; jForImagem++){
+			fwrite(&aux, sizeof(unsigned char), 1, fout);
+		}
+	}
+	
 	fclose(fin);
 	fclose(fout);
-
-	MPI_Finalize();
 }
