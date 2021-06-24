@@ -38,6 +38,13 @@ struct rgb{
 };
 typedef struct rgb RGB;
 
+double tempoCorrente(void){
+     struct timeval tval;
+     gettimeofday(&tval, NULL);
+     return (tval.tv_sec + tval.tv_usec/1000000.0);
+}
+
+
 int main(int argc, char **argv ){
 	char *entrada, *saida;
 	int tamanhoMascara, nth;
@@ -50,6 +57,7 @@ int main(int argc, char **argv ){
 	int range;
 	int np, id;
 	int nthreads;
+	double ti,tf;
 
 	if ( argc != 5){
 		printf("%s <img_entrada> <img_saida> <mascara> <num_threads>\n", argv[0]);
@@ -60,6 +68,8 @@ int main(int argc, char **argv ){
 	saida = argv[2];
 	tamanhoMascara = atoi(argv[3]);
 	nthreads = atoi(argv[4]);
+
+	omp_set_num_threads(nthreads);
 
 	FILE *fin = fopen(entrada, "rb");
 
@@ -84,6 +94,9 @@ int main(int argc, char **argv ){
 
 	fwrite(&cabecalho, sizeof(CABECALHO), 1, fout);
 
+	
+
+
 	//Alocar imagem
 	RGB rgbAux[tamanhoMascara*tamanhoMascara];
 	RGB rgbAux2;
@@ -95,10 +108,14 @@ int main(int argc, char **argv ){
 		imagemSaida[iForImagem] = (RGB *)malloc(cabecalho.largura*sizeof(RGB));
 	}
 
+	
+
+	ti = tempoCorrente();
+
 	//Leitura da imagem
 	for(iForImagem=0; iForImagem<cabecalho.altura; iForImagem++){
 		ali = (cabecalho.largura * 3) % 4;
-
+		
 		if (ali != 0){
 			ali = 4 - ali;
 		}
@@ -156,6 +173,7 @@ int main(int argc, char **argv ){
             iTamanhoAux2 = 0;
 
 			//Calcular a mediana de cada pixel da imagem.
+			//#pragma omp parallel for
 			for(i2=lacoI; i2<=limiteI; i2++){
 				for(j2=lacoJ; j2<=limiteJ; j2++){
 					rgbAux[iTamanhoAux].red   = imagem[i2][j2].red;
@@ -166,47 +184,60 @@ int main(int argc, char **argv ){
 				}
 			}
 
+
 			//Ordenar vetores red
-            for (iForOrdenar = 0; iForOrdenar < iTamanhoAux; iForOrdenar++)
-            {
-                for (jForOrdenar = 0; jForOrdenar < iTamanhoAux; jForOrdenar++)
-                {
-                    if (rgbAux[iForOrdenar].red < rgbAux[jForOrdenar].red)
-                    {
-                        rgbAux2.red             = rgbAux[iForOrdenar].red;
-                        rgbAux[iForOrdenar].red = rgbAux[jForOrdenar].red;
-                        rgbAux[jForOrdenar].red = rgbAux2.red;
-                    }
-                }
-            }
+			#pragma omp parallel private (id, iForOrdenar, jForOrdenar)
+			{
+				id = omp_get_thread_num();
+				for (iForOrdenar = id; iForOrdenar < iTamanhoAux; iForOrdenar += nthreads)
+				{
+					for (jForOrdenar = id; jForOrdenar < iTamanhoAux; jForOrdenar += nthreads)
+					{
+						if (rgbAux[iForOrdenar].red < rgbAux[jForOrdenar].red)
+						{
+							rgbAux2.red             = rgbAux[iForOrdenar].red;
+							rgbAux[iForOrdenar].red = rgbAux[jForOrdenar].red;
+							rgbAux[jForOrdenar].red = rgbAux2.red;
+						}
+					}
+				}
+			}
 
             //Ordenar vetores green
-            for (iForOrdenar = 0; iForOrdenar < iTamanhoAux; iForOrdenar++)
-            {
-                for (jForOrdenar = 0; jForOrdenar < iTamanhoAux; jForOrdenar++)
-                {
-                    if (rgbAux[iForOrdenar].green < rgbAux[jForOrdenar].green)
-                    {
-                        rgbAux2.green             = rgbAux[iForOrdenar].green;
-                        rgbAux[iForOrdenar].green = rgbAux[jForOrdenar].green;
-                        rgbAux[jForOrdenar].green = rgbAux2.green;
-                    }
-                }
-            }
-
-            //Ordenar vetores blue
-            for (iForOrdenar = 0; iForOrdenar < iTamanhoAux; iForOrdenar++)
-            {
-                for (jForOrdenar = 0; jForOrdenar < iTamanhoAux; jForOrdenar++)
-                {
-                    if (rgbAux[iForOrdenar].blue < rgbAux[jForOrdenar].blue)
-                    {
-                        rgbAux2.blue             = rgbAux[iForOrdenar].blue;
-                        rgbAux[iForOrdenar].blue = rgbAux[jForOrdenar].blue;
-                        rgbAux[jForOrdenar].blue = rgbAux2.blue;
-                    }
-                }
-            }
+			#pragma omp parallel private (id, iForOrdenar, jForOrdenar)
+			{
+				id = omp_get_thread_num();
+				for (iForOrdenar = id; iForOrdenar < iTamanhoAux; iForOrdenar += nthreads)
+				{
+					for (jForOrdenar = id; jForOrdenar < iTamanhoAux; jForOrdenar += nthreads)
+					{
+						if (rgbAux[iForOrdenar].green < rgbAux[jForOrdenar].green)
+						{
+							rgbAux2.green             = rgbAux[iForOrdenar].green;
+							rgbAux[iForOrdenar].green = rgbAux[jForOrdenar].green;
+							rgbAux[jForOrdenar].green = rgbAux2.green;
+						}
+					}
+				}
+			}
+            
+			//Ordenar vetores blue
+			#pragma omp parallel private (id, iForOrdenar, jForOrdenar)
+			{
+				id = omp_get_thread_num();
+				for (iForOrdenar = id; iForOrdenar < iTamanhoAux; iForOrdenar += nthreads)
+				{
+					for (jForOrdenar = id; jForOrdenar < iTamanhoAux; jForOrdenar += nthreads)
+					{
+						if (rgbAux[iForOrdenar].blue < rgbAux[jForOrdenar].blue)
+						{
+							rgbAux2.blue             = rgbAux[iForOrdenar].blue;
+							rgbAux[iForOrdenar].blue = rgbAux[jForOrdenar].blue;
+							rgbAux[jForOrdenar].blue = rgbAux2.blue;
+						}
+					}
+				}
+			}
 
             //Substituir valores pela mediana de cada pixel
 			imagemSaida[iForImagem][jForImagem].red    = rgbAux[posicaoMediana].red;
@@ -231,6 +262,9 @@ int main(int argc, char **argv ){
 			fwrite(&aux, sizeof(unsigned char), 1, fout);
 		}
 	}
+
+	tf = tempoCorrente();
+	printf("Tempo = %f\n", tf - ti );
 
 	fclose(fin);
 	fclose(fout);
