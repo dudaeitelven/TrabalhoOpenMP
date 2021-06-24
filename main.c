@@ -69,6 +69,11 @@ int main(int argc, char **argv ){
 	tamanhoMascara = atoi(argv[3]);
 	nthreads = atoi(argv[4]);
 
+	if ((tamanhoMascara != 3) && (tamanhoMascara != 5) && (tamanhoMascara != 7)){
+		printf("Tamanho da mascara invalido!\n");
+		exit(0);
+	}
+
 	omp_set_num_threads(nthreads);
 
 	FILE *fin = fopen(entrada, "rb");
@@ -113,22 +118,24 @@ int main(int argc, char **argv ){
 	ti = tempoCorrente();
 
 	//Leitura da imagem
-	for(iForImagem=0; iForImagem<cabecalho.altura; iForImagem++){
-		ali = (cabecalho.largura * 3) % 4;
-		
-		if (ali != 0){
-			ali = 4 - ali;
-		}
+	#pragma omp_parallel for reduction(+:imagem,aux)
+	{
+		for(iForImagem=0; iForImagem<cabecalho.altura; iForImagem++){
+			ali = (cabecalho.largura * 3) % 4;
+			
+			if (ali != 0){
+				ali = 4 - ali;
+			}
 
-		for(jForImagem=0; jForImagem<cabecalho.largura; jForImagem++){
-			fread(&imagem[iForImagem][jForImagem], sizeof(RGB), 1, fin);
-		}
+			for(jForImagem=0; jForImagem<cabecalho.largura; jForImagem++){
+				fread(&imagem[iForImagem][jForImagem], sizeof(RGB), 1, fin);
+			}
 
-		for(jForImagem=0; jForImagem<ali; jForImagem++){
-			fread(&aux, sizeof(unsigned char), 1, fin);
+			for(jForImagem=0; jForImagem<ali; jForImagem++){
+				fread(&aux, sizeof(unsigned char), 1, fin);
+			}
 		}
 	}
-
 	//Processar imagem
 	for(iForImagem=0; iForImagem<cabecalho.altura; iForImagem++){
 		for(jForImagem=0; jForImagem<cabecalho.largura; jForImagem++){
@@ -247,22 +254,24 @@ int main(int argc, char **argv ){
 	}
 
 	//Escrever a imagem
-	for(iForImagem=0; iForImagem<cabecalho.altura; iForImagem++){
-		ali = (cabecalho.largura * 3) % 4;
+	#pragma omp_parallel for reduction(+:imagemSaida,aux)
+	{
+		for(iForImagem=0; iForImagem<cabecalho.altura; iForImagem++){
+			ali = (cabecalho.largura * 3) % 4;
 
-		if (ali != 0){
-			ali = 4 - ali;
-		}
+			if (ali != 0){
+				ali = 4 - ali;
+			}
+			
+			for(jForImagem=0; jForImagem<cabecalho.largura; jForImagem++){
+				fwrite(&imagemSaida[iForImagem][jForImagem], sizeof(RGB), 1, fout);
+			}
 
-		for(jForImagem=0; jForImagem<cabecalho.largura; jForImagem++){
-			fwrite(&imagemSaida[iForImagem][jForImagem], sizeof(RGB), 1, fout);
-		}
-
-		for(jForImagem=0; jForImagem<ali; jForImagem++){
-			fwrite(&aux, sizeof(unsigned char), 1, fout);
+			for(jForImagem=0; jForImagem<ali; jForImagem++){
+				fwrite(&aux, sizeof(unsigned char), 1, fout);
+			}
 		}
 	}
-
 	tf = tempoCorrente();
 	printf("Tempo = %f\n", tf - ti );
 
